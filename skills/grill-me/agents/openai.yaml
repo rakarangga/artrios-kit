@@ -1,0 +1,6 @@
+interface:
+  display_name: "Grill Me"
+  short_description: "Question a plan one step at a time and save every answer"
+  default_prompt: "Use $grill-me on this topic and save each answer."
+policy:
+  allow_implicit_invocation: false

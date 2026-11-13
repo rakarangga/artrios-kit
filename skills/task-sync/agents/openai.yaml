@@ -1,0 +1,6 @@
+interface:
+  display_name: "Task Sync"
+  short_description: "Sync task status with what is already known"
+  default_prompt: "Use $task-sync to check and update my tasks."
+policy:
+  allow_implicit_invocation: false

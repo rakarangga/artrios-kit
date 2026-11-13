@@ -1,0 +1,6 @@
+interface:
+  display_name: "Task Review"
+  short_description: "Review tasks per status with reasons and proposals"
+  default_prompt: "Use $task-review for my todo tasks."
+policy:
+  allow_implicit_invocation: false

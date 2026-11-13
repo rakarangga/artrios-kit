@@ -1,0 +1,6 @@
+interface:
+  display_name: "Git Log Graph"
+  short_description: "Show the last 10 commits of a project as a graph"
+  default_prompt: "Use $gl for this repo."
+policy:
+  allow_implicit_invocation: false

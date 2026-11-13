@@ -1,0 +1,6 @@
+interface:
+  display_name: "Compact Project"
+  short_description: "Checkpoint a session into durable project files"
+  default_prompt: "Use $compact-project to checkpoint this session."
+policy:
+  allow_implicit_invocation: false

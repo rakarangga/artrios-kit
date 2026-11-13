@@ -1,0 +1,4 @@
+interface:
+  display_name: "OS Audit"
+  short_description: "Check routing, freshness, bloat, and context drift"
+  default_prompt: "Run $os-audit on this project."

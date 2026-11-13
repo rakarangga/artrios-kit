@@ -1,0 +1,14 @@
+__pycache__/
+node_modules/
+.env
+.env.*
+# What the wizard writes: this instance's own data, never part of a release
+artrios/providers.yaml
+artrios/providers.tmp
+/apps/
+/aios-intake.md
+/aios-intake.tmp
+/context/
+/references/
+/connections.md
+/archives/
