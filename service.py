@@ -15,6 +15,7 @@ A device without a signed-in user (Windows) is not supported in this version.
 """
 import json
 import os
+import re
 import shutil
 import signal
 import subprocess
@@ -26,6 +27,24 @@ KIT = Path(__file__).resolve().parent
 TASK = "ArtriosKit"
 UNIT = "artrios-kit.service"
 PLIST = "com.artrios.kit"
+HOST_ONLY = {}  # tool name -> the Windows path that was skipped (WSL only), so a message can say why it counts as missing
+
+
+def is_wsl() -> bool:
+    try:
+        return "microsoft" in Path("/proc/version").read_text(encoding="utf-8", errors="replace").lower()
+    except OSError:
+        return False
+
+
+def which(name: str):
+    """shutil.which, except that inside WSL a program found only under /mnt/<drive>/ (the Windows PATH that WSL appends)
+    counts as missing: node.exe or npm.cmd from Windows cannot build or run a Linux install (UNC cwd, native modules)."""
+    path = shutil.which(name)
+    if path and is_wsl() and re.match(r"^/mnt/[a-zA-Z]/", path):
+        HOST_ONLY[name] = path
+        return None
+    return path
 
 
 def ui_dir() -> Path:
@@ -72,7 +91,7 @@ def start(home: Path) -> int:
     if pid:
         print(f"Already running (pid {pid}).")
         return 0
-    node = shutil.which("node")
+    node = which("node")
     target = ui_dir()
     if not node or not (target / "bin" / "start.js").exists():
         print(f"The UI is not installed in {target}, or node is missing. Run `python install.py --wizard` first.")

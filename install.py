@@ -33,6 +33,8 @@ import sys
 import time
 import urllib.error
 import urllib.request
+
+from service import HOST_ONLY, is_wsl, which
 from datetime import datetime
 from pathlib import Path
 
@@ -151,7 +153,7 @@ def update_ui(home: Path, apply: bool) -> int:
     print(f"{'UPDATE' if apply else 'would update'} UI {have} -> {want} in {target}")
     if not apply:
         return 0
-    node, npm = shutil.which("node"), shutil.which("npm")
+    node, npm = which("node"), which("npm")
     if not node or not npm:
         print("FAIL  UI not rebuilt: Node 20+ and npm are needed")
         return 1
@@ -323,7 +325,7 @@ def uninstall(home: Path, apply: bool, remove_env) -> int:
 def ask(question: str, default: str = "") -> str:
     suffix = f" [{default}]" if default else ""
     try:
-        answer = input(f"{question}{suffix}: ").strip()
+        answer = input(f"{T(question)}{suffix}: ").strip()
     except EOFError:
         return default
     return answer or default
@@ -344,7 +346,7 @@ def ask_secret(question: str) -> str:
 
 def ask_block(question: str) -> str:
     """Multi-line answer for pasted text: a line with a single dot ends it."""
-    print(f"{question}\n  (paste or type; finish with a line holding only a dot)")
+    print(f"{T(question)}\n  {T('(paste or type; finish with a line holding only a dot)')}")
     lines = []
     while True:
         try:
@@ -355,6 +357,127 @@ def ask_block(question: str) -> str:
             break
         lines.append(line)
     return "\n".join(lines).strip()
+
+
+# ---------------------------------------------------------------- wizard language (English or Bahasa Indonesia)
+
+LANG = "en"
+# English text -> Indonesian. A text without an entry shows in English. Keys are the exact English templates.
+ID = {
+    "(paste or type; finish with a line holding only a dot)": "(tempel atau ketik; akhiri dengan satu baris berisi titik saja)",
+    "Choose": "Pilih",
+    "Check again now?": "Cek lagi sekarang?",
+    "Which one is the primary?": "Mana yang jadi provider utama?",
+    "Install the UI?": "Pasang UI?",
+    "Start the UI automatically when you log in?": "Jalankan UI otomatis saat Anda login?",
+    "Start it now too?": "Jalankan sekarang juga?",
+    "Fill it in now?": "Isi sekarang?",
+    "Your name": "Nama Anda",
+    "Reply language": "Bahasa balasan",
+    "Base URL (ends in /v1 for most)": "Base URL (kebanyakan berakhir /v1)",
+    "Name for the key variable, empty for no key": "Nama variabel kunci, kosongkan jika tanpa kunci",
+    "Short name for this provider (lowercase, digits, dashes)": "Nama pendek provider ini (huruf kecil, angka, strip)",
+    "Model name, as this endpoint spells it": "Nama model, seperti ditulis endpoint ini",
+    "Start the UI now?": "Jalankan UI sekarang?",
+    "\n== Checking this machine ==": "\n== Memeriksa komputer ini ==",
+    "{flag} Node {out} (the UI needs 20 or newer)": "{flag} Node {out} (UI butuh versi 20 atau lebih baru)",
+    "WARN  could not read the Node version": "WARN  versi Node tidak terbaca",
+    "MISS  Node.js: the UI needs Node 20 or newer (https://nodejs.org); skills work without it": "MISS  Node.js: UI butuh Node 20 atau lebih baru (https://nodejs.org); skills tetap jalan tanpa Node",
+    "WARN  {name} was found only as the Windows program ({path}). It cannot run a Linux install, so it counts as missing. Install it inside this Linux system{hint}.": "WARN  {name} hanya ditemukan sebagai program Windows ({path}). Itu tidak bisa dipakai untuk instalasi Linux, jadi dianggap belum ada. Pasang di dalam sistem Linux ini{hint}.",
+    " (for example with nvm: https://github.com/nvm-sh/nvm, then `nvm install 22`)": " (misalnya dengan nvm: https://github.com/nvm-sh/nvm, lalu `nvm install 22`)",
+    "  Install {name} yourself:\n    {cmd}": "  Pasang {name} sendiri:\n    {cmd}",
+    "  Docs: {docs}": "  Dokumentasi: {docs}",
+    "  Open a new terminal after installing so the PATH is fresh.": "  Buka terminal baru setelah memasang supaya PATH terbarui.",
+    "\nEndpoint:": "\nEndpoint:",
+    "  skipped": "  dilewati",
+    "  A base URL must start with http:// or https://. Skipped.": "  Base URL harus diawali http:// atau https://. Dilewati.",
+    "  A key variable uses uppercase letters, digits and underscores. Skipped.": "  Variabel kunci memakai huruf besar, angka, dan garis bawah. Dilewati.",
+    "  A model name is required. Skipped.": "  Nama model wajib diisi. Dilewati.",
+    "API key (stored in {env_file} as {key_env}; leave empty to keep the current one)": "API key (disimpan di {env_file} sebagai {key_env}; kosongkan untuk mempertahankan yang ada)",
+    "  Testing with one short call...": "  Menguji dengan satu panggilan singkat...",
+    "  ok: {reply}": "  ok: {reply}",
+    "  The test failed: {err}\n  The provider is saved; fix it in Settings > Model or run the wizard again.": "  Tes gagal: {err}\n  Provider tersimpan; perbaiki di Settings > Model atau jalankan wizard lagi.",
+    "\n== Model provider ==": "\n== Provider model ==",
+    "Skills and the UI need a model. Use the claude command (your own sign-in), or an API key from an OpenAI-compatible endpoint.": "Skills dan UI butuh model. Pakai perintah claude (login Anda sendiri), atau API key dari endpoint yang kompatibel dengan OpenAI.",
+    "Already set: {names} (primary: {primary})": "Sudah diatur: {names} (utama: {primary})",
+    "\n  1. Claude Code CLI": "\n  1. Claude Code CLI",
+    " (not found yet)": " (belum ditemukan)",
+    "  2. API key or gateway (OpenRouter, OpenAI, Ollama, other)": "  2. API key atau gateway (OpenRouter, OpenAI, Ollama, lainnya)",
+    "  3. Done / skip for now": "  3. Selesai / lewati dulu",
+    "  Not found. Install it, open a new terminal, and run the wizard again.": "  Tidak ditemukan. Pasang, buka terminal baru, lalu jalankan wizard lagi.",
+    "  Added. Sign in by running `claude` yourself; this kit never handles that login.": "  Ditambahkan. Login dengan menjalankan `claude` sendiri; kit ini tidak pernah menangani login itu.",
+    "\nProviders: {names}": "\nProvider: {names}",
+    "Primary provider: {primary}": "Provider utama: {primary}",
+    "none": "belum ada",
+    "Skills are installed. They run in a terminal once the claude command is installed and signed in, and the UI chat needs a provider: add one in the UI under Settings > Model, or run the wizard again.": "Skills sudah terpasang. Di terminal skills jalan setelah perintah claude terpasang dan login, dan chat UI butuh provider: tambahkan di UI lewat Settings > Model, atau jalankan wizard lagi.",
+    "none yet": "belum ada",
+    ". The skills in a terminal need the claude command, and the UI chat needs a provider: add one in the UI under Settings > Model, or run the wizard again.": ". Skills di terminal butuh perintah claude, dan chat UI butuh provider: tambahkan di UI lewat Settings > Model, atau jalankan wizard lagi.",
+    "\n== Local web UI ==": "\n== UI web lokal ==",
+    "Skipped: needs Node 20+ and npm. Install them, then run the wizard again.": "Dilewati: butuh Node 20+ dan npm. Pasang keduanya, lalu jalankan wizard lagi.",
+    "The UI did not install; the error is above. On Windows a native module may need build tools. Everything else is in place.": "UI gagal terpasang; error ada di atas. Di Windows modul native mungkin butuh build tools. Yang lain sudah terpasang.",
+    "\nThe UI asks for a password. Choose one now; you will set your own at the first sign-in.": "\nUI meminta password. Pilih satu sekarang; Anda akan menggantinya saat login pertama.",
+    "No password was saved. Run `npm run password` in {target} before `npm start`.": "Password belum tersimpan. Jalankan `npm run password` di {target} sebelum `npm start`.",
+    "UI is ready. Sign in as administrator; add or change providers there in Settings.": "UI siap. Login sebagai administrator; tambah atau ubah provider di Settings.",
+    "Manual start any time:\n  cd \"{target}\"\n  npm start\nor in the background: python install.py --service start (also stop, restart, status, remove).": "Jalankan manual kapan saja:\n  cd \"{target}\"\n  npm start\natau di latar belakang: python install.py --service start (juga stop, restart, status, remove).",
+    "The UI was built but did not answer on localhost. Try `npm start` in {target} and read the error.": "UI sudah dibangun tetapi tidak menjawab di localhost. Coba `npm start` di {target} dan baca errornya.",
+    "\n== Start with the device ==": "\n== Jalan bersama perangkat ==",
+    "Now: {status}.": "Sekarang: {status}.",
+    "Manual: start it yourself with `npm start` or `python install.py --service start`.": "Manual: jalankan sendiri dengan `npm start` atau `python install.py --service start`.",
+    "\n== Onboarding form ==": "\n== Form onboarding ==",
+    "Seven questions, one minute each. Answers go to aios-intake.md and you can edit them there and run this again.": "Tujuh pertanyaan, satu menit tiap pertanyaan. Jawaban masuk ke aios-intake.md; Anda bisa mengeditnya di sana dan menjalankan ini lagi.",
+    "Skipped. Later: run the wizard again, or /onboard in a session.": "Dilewati. Nanti: jalankan wizard lagi, atau /onboard di sebuah sesi.",
+    "{key}: already answered, kept.": "{key}: sudah dijawab, dipertahankan.",
+    "Written: {files}": "Tertulis: {files}",
+    "nothing changed": "tidak ada yang berubah",
+    "The summary waits for a provider: run the wizard again when you have one.": "Ringkasan menunggu provider: jalankan wizard lagi setelah Anda punya satu.",
+    "Writing a short summary with your provider...": "Menulis ringkasan singkat dengan provider Anda...",
+    "Written: context/summary.md": "Tertulis: context/summary.md",
+    "No summary this time; the other files are complete. Run the wizard again to retry.": "Belum ada ringkasan kali ini; file lainnya lengkap. Jalankan wizard lagi untuk mencoba ulang.",
+    "Artrios kit setup. Kit folder: {kit}": "Setup Artrios kit. Folder kit: {kit}",
+    "Files outside the kit folder: skills in .claude and .codex, one import line in .claude/CLAUDE.md, keys in .artrios/.env.": "File di luar folder kit: skills di .claude dan .codex, satu baris import di .claude/CLAUDE.md, kunci di .artrios/.env.",
+    "\n== Core and skills ==": "\n== Core dan skills ==",
+    "\n== Done ==": "\n== Selesai ==",
+    "Open the UI:  {url}": "Buka UI:  {url}",
+    "Sign in as administrator with the password you just set (the UI asks for a new one at the first sign-in).": "Login sebagai administrator dengan password yang baru Anda buat (UI meminta password baru saat login pertama).",
+    "The UI is not running. Start it: python install.py --service start   (or: cd \"{target}\" && npm start)": "UI belum jalan. Jalankan: python install.py --service start   (atau: cd \"{target}\" && npm start)",
+    "WSL: open that address in the Windows browser; WSL forwards localhost.": "WSL: buka alamat itu di browser Windows; WSL meneruskan localhost.",
+    "Next: no provider yet. In the UI go to Settings > Model and add one (or install the claude command and run the wizard again).": "Berikutnya: belum ada provider. Di UI buka Settings > Model dan tambahkan satu (atau pasang perintah claude lalu jalankan wizard lagi).",
+    "Check it: start a new session with your CLI and ask \"who are you?\".": "Cek: mulai sesi baru dengan CLI Anda dan tanya \"who are you?\".",
+    "The UI was not installed. Install Node 20+, then run the wizard again to get it.": "UI belum terpasang. Pasang Node 20+, lalu jalankan wizard lagi.",
+    "Run this wizard again any time; it keeps what is already set.": "Jalankan wizard ini lagi kapan saja; yang sudah diatur dipertahankan.",
+    "Language / Bahasa:\n  1. English\n  2. Bahasa Indonesia": "Language / Bahasa:\n  1. English\n  2. Bahasa Indonesia",
+}
+QUESTIONS_ID = {
+    "Q1": "Q1. Siapa Anda, apa yang Anda tawarkan, dan untuk siapa?",
+    "Q2a": "Q2. Tempel sesuatu yang baru-baru ini Anda tulis (email, postingan). Jangan menulis yang baru: teks yang ditulis untuk form ini menyesatkan.",
+    "Q2b": "Q2. Tempel satu lagi, atau langsung akhiri untuk melewati.",
+    "Q3": "Q3. 2-3 prioritas terbesar Anda untuk 90 hari ke depan, satu per baris, masing-masing dengan angka, tanggal, atau hasil akhir.",
+    "Q4": "Q4. Ke mana pendapatan masuk, dan di mana dicatat?",
+    "Q5": "Q5. Di mana Anda berbicara dengan pelanggan, tim, dan dunia luar sehari-hari?",
+    "Q6": "Q6. Di mana rekaman rapat, catatan, dan dokumen penting disimpan?",
+    "Q7": "Q7. Satu tugas apa yang menghabiskan minggu Anda, dan di mana Anda melacak pekerjaan sekarang?",
+}
+
+
+def T(en: str, **kw) -> str:
+    s = ID.get(en, en) if LANG == "id" else en
+    return s.format(**kw) if kw else s
+
+
+def say(en: str, **kw) -> None:
+    print(T(en, **kw))
+
+
+def choose_language(arg) -> None:
+    """--lang, then ARTRIOS_LANG, then a question when a person is at the keyboard. A piped run (tests) stays English."""
+    global LANG
+    pick = arg or os.environ.get("ARTRIOS_LANG", "")
+    if not pick and sys.stdin.isatty():
+        saved = profile_value("Reply language").lower()
+        default = "2" if ("indonesia" in saved or saved == "id") else "1"
+        print(ID["Language / Bahasa:\n  1. English\n  2. Bahasa Indonesia"])
+        pick = "id" if ask("Choose / Pilih", default) == "2" else "en"
+    LANG = "id" if pick.lower() in ("id", "indonesia", "bahasa", "2") else "en"
 
 
 # ---------------------------------------------------------------- providers (same file format as ui/server/providers/config.js)
@@ -471,7 +594,7 @@ def ask_model(provider: dict, env: dict, prompt: str):
     """The wizard's only model use: a test call and the onboarding summary. None when it cannot answer."""
     try:
         if provider.get("transport") == "claude_cli":
-            exe = shutil.which("claude")
+            exe = which("claude")
             if not exe:
                 return None
             r = subprocess.run([exe, "-p"], input=prompt, capture_output=True, text=True, encoding="utf-8", timeout=180)
@@ -483,23 +606,26 @@ def ask_model(provider: dict, env: dict, prompt: str):
 
 
 def step_prereqs() -> dict:
-    print("\n== Checking this machine ==")
+    say("\n== Checking this machine ==")
     print(f"ok    Python {sys.version.split()[0]}")
-    found = {name: shutil.which(name) for name in ("git", "node", "npm", "claude", "codex")}
+    found = {name: which(name) for name in ("git", "node", "npm", "claude", "codex")}
     node_ok = False
     if found["node"]:
         try:
             out = subprocess.run([found["node"], "--version"], capture_output=True, text=True, timeout=20).stdout.strip()
             node_ok = int(out.lstrip("v").split(".")[0]) >= 20
-            print(f"{'ok   ' if node_ok else 'OLD  '} Node {out} (the UI needs 20 or newer)")
+            say("{flag} Node {out} (the UI needs 20 or newer)", flag="ok   " if node_ok else "OLD  ", out=out)
         except (OSError, ValueError, subprocess.SubprocessError):
-            print("WARN  could not read the Node version")
+            say("WARN  could not read the Node version")
     else:
-        print("MISS  Node.js: the UI needs Node 20 or newer (https://nodejs.org); skills work without it")
+        say("MISS  Node.js: the UI needs Node 20 or newer (https://nodejs.org); skills work without it")
     for name in ("git", "npm"):
         print(f"{'ok   ' if found[name] else 'MISS '} {name}")
     for name in ("claude", "codex"):
         print(f"{'ok   ' if found[name] else 'none '} {name}")
+    for name, path in HOST_ONLY.items():
+        say("WARN  {name} was found only as the Windows program ({path}). It cannot run a Linux install, so it counts as missing. Install it inside this Linux system{hint}.",
+            name=name, path=path, hint=T(" (for example with nvm: https://github.com/nvm-sh/nvm, then `nvm install 22`)") if name in ("node", "npm") else "")
     found["node_ok"] = node_ok and bool(found["npm"])
     return found
 
@@ -508,13 +634,13 @@ def show_cli_help(name: str) -> None:
     h = CLI_HELP[name]
     cmd = h["win32"] if sys.platform == "win32" else h["other"]
     if cmd:
-        print(f"  Install {name} yourself:\n    {cmd}")
-    print(f"  Docs: {h['docs']}")
-    print("  Open a new terminal after installing so the PATH is fresh.")
+        say("  Install {name} yourself:\n    {cmd}", name=name, cmd=cmd)
+    say("  Docs: {docs}", docs=h["docs"])
+    say("  Open a new terminal after installing so the PATH is fresh.")
 
 
 def add_api_provider(data: dict, env_file: Path) -> None:
-    print("\nEndpoint:")
+    say("\nEndpoint:")
     for i, (_, label, _, _) in enumerate(PRESETS, 1):
         print(f"  {i}. {label}")
     choice = ask("Choose", "1")
@@ -527,55 +653,55 @@ def add_api_provider(data: dict, env_file: Path) -> None:
     while not ID_RE.match(pid):
         pid = ask("Short name for this provider (lowercase, digits, dashes)").lower()
         if not pid:
-            print("  skipped")
+            say("  skipped")
             return
     if not re.match(r"^https?://", base):
-        print("  A base URL must start with http:// or https://. Skipped.")
+        say("  A base URL must start with http:// or https://. Skipped.")
         return
     if key_env and not KEY_RE.match(key_env):
-        print("  A key variable uses uppercase letters, digits and underscores. Skipped.")
+        say("  A key variable uses uppercase letters, digits and underscores. Skipped.")
         return
     model = ask("Model name, as this endpoint spells it")
     if not model:
-        print("  A model name is required. Skipped.")
+        say("  A model name is required. Skipped.")
         return
     if key_env:
-        key = ask_secret(f"API key (stored in {env_file} as {key_env}; leave empty to keep the current one)")
+        key = ask_secret(T("API key (stored in {env_file} as {key_env}; leave empty to keep the current one)", env_file=env_file, key_env=key_env))
         if key:
             set_env(env_file, key_env, key)
     provider = {"transport": "chat_completions", "base_url": base.rstrip("/"), "model": model}
     if key_env:
         provider["key_env"] = key_env
     data["providers"][pid] = provider
-    print("  Testing with one short call...")
+    say("  Testing with one short call...")
     try:
-        print(f"  ok: {chat(provider, read_env(env_file).get(key_env), 'Reply with the single word OK.')[:80]}")
+        say("  ok: {reply}", reply=chat(provider, read_env(env_file).get(key_env), "Reply with the single word OK.")[:80])
     except RuntimeError as e:
-        print(f"  The test failed: {e}\n  The provider is saved; fix it in Settings > Model or run the wizard again.")
+        say("  The test failed: {err}\n  The provider is saved; fix it in Settings > Model or run the wizard again.", err=e)
 
 
 def step_provider(found: dict, env_file: Path) -> dict:
-    print("\n== Model provider ==")
-    print("Skills and the UI need a model. Use the claude command (your own sign-in), or an API key from an OpenAI-compatible endpoint.")
+    say("\n== Model provider ==")
+    say("Skills and the UI need a model. Use the claude command (your own sign-in), or an API key from an OpenAI-compatible endpoint.")
     data = load_providers()
     if data["providers"]:
-        print("Already set:", ", ".join(data["providers"]), f"(primary: {data['primary'] or 'none'})")
+        say("Already set: {names} (primary: {primary})", names=", ".join(data["providers"]), primary=data["primary"] or T("none"))
     while True:
-        print("\n  1. Claude Code CLI" + ("" if found["claude"] else " (not found yet)"))
-        print("  2. API key or gateway (OpenRouter, OpenAI, Ollama, other)")
-        print("  3. Done / skip for now")
+        print("\n  1. Claude Code CLI" + ("" if found["claude"] else T(" (not found yet)")))
+        say("  2. API key or gateway (OpenRouter, OpenAI, Ollama, other)")
+        say("  3. Done / skip for now")
         choice = ask("Choose", "3")
         if choice == "1":
-            found["claude"] = shutil.which("claude")
+            found["claude"] = which("claude")
             if not found["claude"]:
                 show_cli_help("claude")
                 input_hint = ask_yes("Check again now?", False)
-                found["claude"] = shutil.which("claude") if input_hint else None
+                found["claude"] = which("claude") if input_hint else None
                 if not found["claude"]:
-                    print("  Not found. Install it, open a new terminal, and run the wizard again.")
+                    say("  Not found. Install it, open a new terminal, and run the wizard again.")
                     continue
             data["providers"]["claude"] = {"transport": "claude_cli"}
-            print("  Added. Sign in by running `claude` yourself; this kit never handles that login.")
+            say("  Added. Sign in by running `claude` yourself; this kit never handles that login.")
         elif choice == "2":
             add_api_provider(data, env_file)
         else:
@@ -586,7 +712,7 @@ def step_provider(found: dict, env_file: Path) -> dict:
         data["primary"] = names[0]
     elif len(names) > 1:
         # No hidden default: the user picks.
-        print("\nProviders:", ", ".join(names))
+        say("\nProviders: {names}", names=", ".join(names))
         pick = ""
         while pick not in names:
             pick = ask("Which one is the primary?", data["primary"] if data["primary"] in names else "")
@@ -597,48 +723,61 @@ def step_provider(found: dict, env_file: Path) -> dict:
         data["primary"] = None
     if names:
         save_providers(data)
-    print(f"Primary provider: {data['primary'] or 'none'}" + ("" if data["primary"] else ". Skills are installed but cannot run yet; run the wizard again when you have one."))
+    say("Primary provider: {primary}", primary=data["primary"] or T("none"))
+    if not data["primary"]:
+        say("Skills are installed. They run in a terminal once the claude command is installed and signed in, and the UI chat needs a provider: add one in the UI under Settings > Model, or run the wizard again.")
     return data
 
 
-def step_ui(found: dict, home: Path, env_file: Path) -> None:
-    print("\n== Local web UI ==")
+def step_ui(found: dict, home: Path, env_file: Path):
+    """Returns {"target": Path, "url": str} when the UI is built and answers, else None."""
+    say("\n== Local web UI ==")
     if not found["node_ok"]:
-        print("Skipped: needs Node 20+ and npm. Install them, then run the wizard again.")
-        return
+        say("Skipped: needs Node 20+ and npm. Install them, then run the wizard again.")
+        return None
     if not ask_yes("Install the UI?", True):
-        return
+        return None
     target = KIT / "apps" / "artrios-ui"
     run = lambda cmd, cwd: subprocess.run(cmd, cwd=str(cwd), check=False).returncode == 0
     ok = run([found["node"], str(KIT / "ui" / "bin" / "scaffold.js"), "--target", str(target), "--kit", str(KIT), "--keys-file", str(env_file)], KIT)
     ok = ok and run([found["npm"], "install"], target) and run([found["npm"], "run", "build"], target)
     if not ok:
-        print("The UI did not install; the error is above. On Windows a native module may need build tools. Everything else is in place.")
-        return
+        say("The UI did not install; the error is above. On Windows a native module may need build tools. Everything else is in place.")
+        return None
     # One account, "administrator" (PRD AIOS-61 v2.0 S1): the password is asked here and changed at the first sign-in.
     if not (target / "data" / "users.json").exists():
-        print("\nThe UI asks for a password. Choose one now; you will set your own at the first sign-in.")
+        say("\nThe UI asks for a password. Choose one now; you will set your own at the first sign-in.")
         if not run([found["node"], str(target / "bin" / "set-password.js")], target):
-            print(f"No password was saved. Run `npm run password` in {target} before `npm start`.")
-            return
+            say("No password was saved. Run `npm run password` in {target} before `npm start`.", target=target)
+            return None
     if check_ui(found["node"], target):
-        print("UI is ready. Sign in as administrator; add or change providers there in Settings.")
+        say("UI is ready. Sign in as administrator; add or change providers there in Settings.")
         step_autostart()
-        print(f"Manual start any time:\n  cd \"{target}\"\n  npm start\nor in the background: python install.py --service start (also stop, restart, status, remove).")
-    else:
-        print(f"The UI was built but did not answer on localhost. Try `npm start` in {target} and read the error.")
+        say("Manual start any time:\n  cd \"{target}\"\n  npm start\nor in the background: python install.py --service start (also stop, restart, status, remove).", target=target)
+        return {"target": target, "url": ui_url(target)}
+    say("The UI was built but did not answer on localhost. Try `npm start` in {target} and read the error.", target=target)
+    return None
+
+
+def ui_url(target: Path) -> str:
+    """The address the installed UI listens on: the port scaffold.js wrote to data/config.json."""
+    try:
+        port = json.loads((target / "data" / "config.json").read_text(encoding="utf-8")).get("port")
+    except (OSError, ValueError):
+        port = None
+    return f"http://localhost:{port}/" if port else "http://localhost:4317/"
 
 
 def step_autostart() -> None:
     import service
-    print("\n== Start with the device ==")
-    print(f"Now: {service.autostart_status()}.")
+    say("\n== Start with the device ==")
+    say("Now: {status}.", status=service.autostart_status())
     if ask_yes("Start the UI automatically when you log in?", True):
         if service.autostart_on() == 0 and ask_yes("Start it now too?", True):
             service.start(Path(ARGS_HOME))
     else:
         service.autostart_off()
-        print("Manual: start it yourself with `npm start` or `python install.py --service start`.")
+        say("Manual: start it yourself with `npm start` or `python install.py --service start`.")
 
 
 def check_ui(node: str, target: Path) -> bool:
@@ -780,54 +919,75 @@ def profile_value(field: str) -> str:
 
 
 def step_onboard(data: dict, env_file: Path) -> None:
-    print("\n== Onboarding form ==")
-    print("Seven questions, one minute each. Answers go to aios-intake.md and you can edit them there and run this again.")
+    say("\n== Onboarding form ==")
+    say("Seven questions, one minute each. Answers go to aios-intake.md and you can edit them there and run this again.")
     if not ask_yes("Fill it in now?", True):
-        print("Skipped. Later: run the wizard again, or /onboard in a session.")
+        say("Skipped. Later: run the wizard again, or /onboard in a session.")
         return
     answers = read_intake()
     owner = ask("Your name", profile_value("Owner name"))
-    language = ask("Reply language", profile_value("Reply language") or "English")
+    language = ask("Reply language", profile_value("Reply language") or ("Bahasa Indonesia" if LANG == "id" else "English"))
     for key, question in QUESTIONS:
         if answers.get(key):
-            print(f"{key}: already answered, kept.")
+            say("{key}: already answered, kept.", key=key)
             continue
-        answers[key] = ask_block(question)
+        answers[key] = ask_block(QUESTIONS_ID[key] if LANG == "id" else question)
         write_intake(answers)  # an interrupted form resumes where it stopped
     write_intake(answers)
     changed = write_context(answers, owner, language)
-    print("Written:", ", ".join(changed) if changed else "nothing changed")
+    say("Written: {files}", files=", ".join(changed) if changed else T("nothing changed"))
     provider = data["providers"].get(data["primary"]) if data["primary"] else None
     if not provider:
-        print("The summary waits for a provider: run the wizard again when you have one.")
+        say("The summary waits for a provider: run the wizard again when you have one.")
         return
     prompt = (f"Write a summary of this person's situation in at most 120 words, in {language}. Use only what is written here; invent nothing.\n\n"
               f"Who: {answers.get('Q1', '')}\nPriorities: {answers.get('Q3', '')}\nBiggest time sink: {answers.get('Q7', '')}")
-    print("Writing a short summary with your provider...")
+    say("Writing a short summary with your provider...")
     summary = ask_model(provider, read_env(env_file), prompt)
     if summary:
         write_file((KIT / "context" / "summary.md"), f"# Summary\n\n{summary.strip()}\n")
-        print("Written: context/summary.md")
+        say("Written: context/summary.md")
     else:
-        print("No summary this time; the other files are complete. Run the wizard again to retry.")
+        say("No summary this time; the other files are complete. Run the wizard again to retry.")
 
 
-def wizard(home: Path, pack) -> int:
-    print(f"Artrios kit setup. Kit folder: {KIT}")
-    print("Files outside the kit folder: skills in .claude and .codex, one import line in .claude/CLAUDE.md, keys in .artrios/.env.")
+def wizard(home: Path, pack, lang=None) -> int:
+    choose_language(lang)
+    say("Artrios kit setup. Kit folder: {kit}", kit=KIT)
+    say("Files outside the kit folder: skills in .claude and .codex, one import line in .claude/CLAUDE.md, keys in .artrios/.env.")
     env_file = home / ".artrios" / ".env"
     found = step_prereqs()
     data = step_provider(found, env_file)
-    print("\n== Core and skills ==")
+    say("\n== Core and skills ==")
     conflicts = install_core(home, pack, True)
     set_profile({"Kit root": KIT.as_posix()})
-    step_ui(found, home, env_file)
+    ui = step_ui(found, home, env_file)
     step_onboard(data, env_file)
-    print("\n== Done ==")
-    print(f"Primary provider: {data['primary'] or 'none yet'}")
-    print("Check it: start a new session with your CLI and ask \"who are you?\".")
-    print("Run this wizard again any time; it keeps what is already set.")
+    finish(home, data, ui, found)
     return 1 if conflicts else 0
+
+
+def finish(home: Path, data: dict, ui, found: dict) -> None:
+    """The ending: where the UI is and what to do next, whether or not a provider exists."""
+    import service
+    say("\n== Done ==")
+    say("Primary provider: {primary}", primary=data["primary"] or T("none yet"))
+    if ui:
+        if service.running_pid(home) is None and ask_yes("Start the UI now?", True):
+            service.start(home)
+        say("Open the UI:  {url}", url=ui["url"])
+        say("Sign in as administrator with the password you just set (the UI asks for a new one at the first sign-in).")
+        if service.running_pid(home) is None:
+            say("The UI is not running. Start it: python install.py --service start   (or: cd \"{target}\" && npm start)", target=ui["target"])
+        if is_wsl():
+            say("WSL: open that address in the Windows browser; WSL forwards localhost.")
+    else:
+        say("The UI was not installed. Install Node 20+, then run the wizard again to get it.")
+    if not data["primary"]:
+        say("Next: no provider yet. In the UI go to Settings > Model and add one (or install the claude command and run the wizard again).")
+    elif found.get("claude"):
+        say("Check it: start a new session with your CLI and ask \"who are you?\".")
+    say("Run this wizard again any time; it keeps what is already set.")
 
 
 def main() -> int:
@@ -836,6 +996,7 @@ def main() -> int:
     ap.add_argument("--home", default=str(Path.home()), help="home folder to install into")
     ap.add_argument("--apply", action="store_true")
     ap.add_argument("--wizard", action="store_true", help="guided setup")
+    ap.add_argument("--lang", choices=["en", "id"], help="wizard language (default: asked when run in a terminal, else English)")
     ap.add_argument("--update", metavar="TAG", help="switch the kit to a release tag (kit-vX.Y.Z), rebuild the UI, roll back on failure")
     ap.add_argument("--uninstall", action="store_true", help="remove what the kit installed")
     ap.add_argument("--service", choices=["start", "stop", "restart", "status", "remove"], help="run the UI in the background")
@@ -861,7 +1022,7 @@ def main() -> int:
     if a.uninstall:
         return uninstall(home, a.apply, a.remove_env)
     if a.wizard:
-        return wizard(home, a.pack)
+        return wizard(home, a.pack, a.lang)
     conflicts = install_core(home, a.pack, a.apply)
     ui_failed = update_ui(home, a.apply)
     if not a.apply:

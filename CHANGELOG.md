@@ -4,6 +4,10 @@ Format follows Keep a Changelog. Versions are tags `kit-vX.Y.Z`.
 
 ## Unreleased
 
+- Installer wizard in English or Bahasa Indonesia: it asks at the start when run in a terminal, or `python install.py --wizard --lang id`. The menus, messages, the seven onboarding questions and the ending follow the choice, and the reply language defaults to it.
+- The wizard ending now shows the UI address (the port from `data/config.json`), offers to start the UI, and says what to do next when no provider is set (Settings > Model). A missing provider no longer reads as "cannot run".
+- WSL: `node`, `npm`, `git`, `claude` and `codex` found only under `/mnt/<drive>/` (the Windows PATH that WSL appends) count as missing, with a hint to install Node inside Linux. Before, the Windows npm built the UI from a UNC path and `npm start` failed.
+
 ## kit-v0.2.1 - 2026-11-13
 
 - UI: Update button. When a newer release tag (`kit-vX.Y.Z`) exists on the kit's origin, the header shows **Update vX.Y.Z**; it opens a Putusan case with the CHANGELOG, then Update switches the kit to the tag, rebuilds skills and UI, and restarts the service. Your own files (`profile.md`, `registry.md`, `inbox.md`, `activity.md`) are backed up to `~/.artrios/backup/` and put back; a failed update rolls back to the previous version. Commits on `main` after the last tag show only as "N unreleased commits", without a button. Also `python install.py --update kit-vX.Y.Z`.

@@ -107,6 +107,60 @@ test('wizard with no provider still installs core and skills, and says how to co
   } finally { s.done(); }
 });
 
+test('wizard --lang id speaks Indonesian and the ending says what to do without a provider', opts, () => {
+  const s = sandbox();
+  try {
+    const r = py(s, ['--wizard', '--lang', 'id'], '3\nn\nn\n');
+    assert.equal(r.status, 0, r.stderr + r.stdout);
+    assert.match(r.stdout, /== Selesai ==/);
+    assert.match(r.stdout, /Provider utama: belum ada/);
+    assert.match(r.stdout, /Settings > Model/);
+    assert.ok(!/== Done ==/.test(r.stdout));
+    assert.ok(fs.existsSync(path.join(s.home, '.claude', 'skills', 'grill-me', 'SKILL.md')));
+  } finally { s.done(); }
+});
+
+test('wizard onboarding form asks the seven questions in Indonesian and defaults the reply language', opts, () => {
+  const s = sandbox();
+  try {
+    const answers = ['3', 'n', 'y', '', '', 'Saya pemilik toko', '.', '', '.', 'Satu, dua', '.', '', '.', '', '.', '', '.', '', '.'].join('\n') + '\n';
+    const r = py(s, ['--wizard', '--lang', 'id'], answers);
+    assert.equal(r.status, 0, r.stderr + r.stdout);
+    assert.match(r.stdout, /Siapa Anda, apa yang Anda tawarkan/);
+    assert.match(r.stdout, /Nama Anda/);
+    assert.match(fs.readFileSync(path.join(s.kit, 'artrios', 'profile.md'), 'utf8'), /\| Reply language \| Bahasa Indonesia \|/);
+  } finally { s.done(); }
+});
+
+test('wizard stays English without --lang when input is piped', opts, () => {
+  const s = sandbox();
+  try {
+    const r = py(s, ['--wizard'], '3\nn\nn\n');
+    assert.match(r.stdout, /== Done ==/);
+    assert.match(r.stdout, /The UI was not installed|Next: no provider yet/);
+  } finally { s.done(); }
+});
+
+test('WSL: node or npm found only under /mnt/<drive>/ counts as missing; a Linux path is kept', opts, () => {
+  const code = [
+    'import sys, shutil',
+    `sys.path.insert(0, ${JSON.stringify(KIT)})`,
+    'import service',
+    'service.is_wsl = lambda: True',
+    'paths = {"node": "/mnt/c/Program Files/nodejs/node.exe", "npm": "/usr/bin/npm"}',
+    'shutil.which = lambda n: paths.get(n)',
+    'print(service.which("node"), service.which("npm"), service.HOST_ONLY)',
+    'service.is_wsl = lambda: False',
+    'service.HOST_ONLY.clear()',
+    'print(service.which("node"))',
+  ].join('\n');
+  const r = spawnSync(PY, ['-c', code], { encoding: 'utf8' });
+  assert.equal(r.status, 0, r.stderr);
+  const [a, b] = r.stdout.trim().split(/\r?\n/);
+  assert.match(a, /^None \/usr\/bin\/npm \{'node': '\/mnt\/c\/Program Files\/nodejs\/node\.exe'\}$/);
+  assert.equal(b, '/mnt/c/Program Files/nodejs/node.exe');
+});
+
 test('wizard end to end: API provider tested against a real local endpoint, key only in .env, form writes first-day files, re-run keeps answers', opts, async () => {
   const s = sandbox();
   const seen = [];
