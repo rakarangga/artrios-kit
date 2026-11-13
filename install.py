@@ -405,6 +405,14 @@ ID = {
     "  2. API key or gateway (OpenRouter, OpenAI, Ollama, other)": "  2. API key atau gateway (OpenRouter, OpenAI, Ollama, lainnya)",
     "  3. Codex CLI (ChatGPT plan, no key)": "  3. Codex CLI (langganan ChatGPT, tanpa key)",
     "  4. Done / skip for now": "  4. Selesai / lewati dulu",
+    " (added)": " (sudah ditambahkan)",
+    "  {name} is already signed in.": "  {name} sudah login.",
+    "  {name} is signed in.": "  {name} sudah login.",
+    "  {name} is not signed in yet.": "  {name} belum login.",
+    "Run `{cmd}` now?": "Jalankan `{cmd}` sekarang?",
+    "  Could not start it: {err}": "  Tidak bisa memulainya: {err}",
+    "  Added. It runs skills and jobs; the UI chat uses Claude Code or an API provider. The sign-in belongs to the codex command; this kit never reads it.": "  Ditambahkan. Codex menjalankan skill dan job; chat UI memakai Claude Code atau provider API. Login milik perintah codex; kit ini tidak pernah membacanya.",
+    "  Added. The sign-in belongs to the claude command; this kit never reads it.": "  Ditambahkan. Login milik perintah claude; kit ini tidak pernah membacanya.",
     "  Added. Sign in by running `codex login` yourself; this kit never handles that login. It runs skills and jobs; the UI chat uses Claude Code or an API provider.": "  Ditambahkan. Login dengan menjalankan `codex login` sendiri; kit ini tidak pernah menangani login itu. Codex menjalankan skill dan job; chat UI memakai Claude Code atau provider API.",
     "  Not found. Install it, open a new terminal, and run the wizard again.": "  Tidak ditemukan. Pasang, buka terminal baru, lalu jalankan wizard lagi.",
     "  Added. Sign in by running `claude` yourself; this kit never handles that login.": "  Ditambahkan. Login dengan menjalankan `claude` sendiri; kit ini tidak pernah menangani login itu.",
@@ -688,6 +696,31 @@ def add_api_provider(data: dict, env_file: Path) -> None:
         say("  The test failed: {err}\n  The provider is saved; fix it in Settings > Model or run the wizard again.", err=e)
 
 
+def sign_in(name: str, exe: str, status_args: list, login_args: list) -> bool:
+    """Shows whether the CLI is signed in and offers to start its own login in this terminal.
+    The kit never reads the login or its output: the CLI keeps its token in its own folder.
+    Returns True when the CLI reports a signed-in state, so the wizard can move on by itself."""
+    def is_signed() -> bool:
+        try:
+            return subprocess.run([exe, *status_args], capture_output=True, timeout=30).returncode == 0
+        except (OSError, subprocess.SubprocessError):
+            return False
+    if is_signed():
+        say("  {name} is already signed in.", name=name)
+        return True
+    say("  {name} is not signed in yet.", name=name)
+    if ask_yes(T("Run `{cmd}` now?", cmd=" ".join([name, *login_args])), False):
+        try:
+            subprocess.run([exe, *login_args])
+        except (OSError, subprocess.SubprocessError) as e:
+            say("  Could not start it: {err}", err=e)
+            return False
+        if is_signed():
+            say("  {name} is signed in.", name=name)
+            return True
+    return False
+
+
 def step_provider(found: dict, env_file: Path) -> dict:
     say("\n== Model provider ==")
     say("Skills and the UI need a model. Use the claude or codex command (your own sign-in), or an API key from an OpenAI-compatible endpoint.")
@@ -695,9 +728,9 @@ def step_provider(found: dict, env_file: Path) -> dict:
     if data["providers"]:
         say("Already set: {names} (primary: {primary})", names=", ".join(data["providers"]), primary=data["primary"] or T("none"))
     while True:
-        print("\n  1. Claude Code CLI" + ("" if found["claude"] else T(" (not found yet)")))
+        print("\n  1. Claude Code CLI" + (T(" (added)") if "claude" in data["providers"] else "" if found["claude"] else T(" (not found yet)")))
         say("  2. API key or gateway (OpenRouter, OpenAI, Ollama, other)")
-        print("  3. Codex CLI (ChatGPT plan, no key)" + ("" if found["codex"] else T(" (not found yet)")))
+        print("  3. Codex CLI (ChatGPT plan, no key)" + (T(" (added)") if "codex" in data["providers"] else "" if found["codex"] else T(" (not found yet)")))
         say("  4. Done / skip for now")
         choice = ask("Choose", "4")
         if choice == "1":
@@ -710,7 +743,10 @@ def step_provider(found: dict, env_file: Path) -> dict:
                     say("  Not found. Install it, open a new terminal, and run the wizard again.")
                     continue
             data["providers"]["claude"] = {"transport": "claude_cli"}
-            say("  Added. Sign in by running `claude` yourself; this kit never handles that login.")
+            say("  Added. The sign-in belongs to the claude command; this kit never reads it.")
+            if sign_in("claude", found["claude"], ["auth", "status"], ["auth", "login"]):
+                save_providers(data)
+                break
         elif choice == "2":
             add_api_provider(data, env_file)
         elif choice == "3":
@@ -722,7 +758,10 @@ def step_provider(found: dict, env_file: Path) -> dict:
                     say("  Not found. Install it, open a new terminal, and run the wizard again.")
                     continue
             data["providers"]["codex"] = {"transport": "codex_cli"}
-            say("  Added. Sign in by running `codex login` yourself; this kit never handles that login. It runs skills and jobs; the UI chat uses Claude Code or an API provider.")
+            say("  Added. It runs skills and jobs; the UI chat uses Claude Code or an API provider. The sign-in belongs to the codex command; this kit never reads it.")
+            if sign_in("codex", found["codex"], ["login", "status"], ["login"]):
+                save_providers(data)
+                break
         else:
             break
         save_providers(data)

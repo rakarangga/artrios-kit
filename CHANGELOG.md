@@ -4,6 +4,8 @@ Format follows Keep a Changelog. Versions are tags `kit-vX.Y.Z`.
 
 ## Unreleased
 
+- Wizard: after adding Claude Code or Codex it shows whether the CLI is signed in (`claude auth status`, `codex login status`) and offers to run its own login in the same terminal (default no). The kit never reads the login or its output. When the CLI is signed in (already, or after that login) the wizard moves straight to the next step instead of showing the menu again. An added provider is marked "(added)" in the menu.
+
 ## kit-v0.2.1 - 2026-11-13
 
 - Installer wizard in English or Bahasa Indonesia: it asks at the start when run in a terminal, or `python install.py --wizard --lang id`. The menus, messages, the seven onboarding questions and the ending follow the choice, and the reply language defaults to it.

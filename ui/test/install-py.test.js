@@ -170,13 +170,37 @@ test('wizard: the Codex CLI option needs the command, then writes a codex_cli pr
     fs.writeFileSync(path.join(bin, isWin ? 'codex.cmd' : 'codex'), isWin ? '@echo off\r\necho codex-cli 1.0\r\n' : '#!/bin/sh\necho codex-cli 1.0\n', { mode: 0o755 });
     const run = (answers, withCodex) => spawnSync(PY, [path.join(s.kit, 'install.py'), '--home', s.home, '--wizard'], { input: answers.join('\n') + '\n', encoding: 'utf8', env: { ...process.env, PYTHONIOENCODING: 'utf-8', ...(withCodex ? { PATH: `${bin}${path.delimiter}${process.env.PATH}` } : {}) } });
     // With the command: a keyless codex_cli provider that becomes the primary.
-    const r = run(['3', '4', 'n', 'n'], true);
+    const r = run(['3', 'n', 'n'], true); // signed in: the wizard moves on without asking for 4
     assert.equal(r.status, 0, r.stdout + r.stderr);
     const yaml = fs.readFileSync(path.join(s.kit, 'artrios', 'providers.yaml'), 'utf8');
     assert.match(yaml, /^primary: codex$/m);
     assert.match(yaml, /transport: "codex_cli"/);
     assert.ok(!/key_env/.test(yaml));
-    assert.match(r.stdout, /codex login/);
+    assert.match(r.stdout, /codex is already signed in/);
+  } finally { s.done(); }
+});
+
+test('wizard: signed-out Codex offers its own login; yes runs it, the default does not, the menu marks the added provider', opts, () => {
+  const s = sandbox();
+  try {
+    const bin = path.join(s.root, 'bin');
+    const mark = path.join(s.root, 'login-ran');
+    fs.mkdirSync(bin);
+    const isWin = process.platform === 'win32';
+    fs.writeFileSync(path.join(bin, isWin ? 'codex.cmd' : 'codex'), isWin
+      ? '@echo off\r\nif "%1 %2"=="login status" (if exist "%MARK%" (exit /b 0) else (exit /b 1))\r\nif "%1"=="login" echo ran> "%MARK%"\r\n'
+      : '#!/bin/sh\nif [ "$1 $2" = "login status" ]; then [ -f "$MARK" ]; exit $?; fi\n[ "$1" = "login" ] && echo ran > "$MARK"\nexit 0\n', { mode: 0o755 });
+    const run = (answers) => spawnSync(PY, [path.join(s.kit, 'install.py'), '--home', s.home, '--wizard'], { input: answers.join('\n') + '\n', encoding: 'utf8', env: { ...process.env, MARK: mark, PYTHONIOENCODING: 'utf-8', PATH: `${bin}${path.delimiter}${process.env.PATH}` } });
+    let r = run(['3', '', '4', 'n', 'n']); // empty answer = the default: no login
+    assert.equal(r.status, 0, r.stdout + r.stderr);
+    assert.match(r.stdout, /codex is not signed in yet/);
+    assert.match(r.stdout, /Codex CLI \(ChatGPT plan, no key\) \(added\)/);
+    assert.equal(fs.existsSync(mark), false, 'the default must not start a login');
+    r = run(['3', 'y', 'n', 'n']); // after the login the CLI reports signed in: no second menu
+    assert.equal(r.status, 0, r.stdout + r.stderr);
+    assert.equal(fs.existsSync(mark), true, 'y runs `codex login` in the same terminal');
+    assert.match(r.stdout, /codex is signed in\./);
+    assert.equal((r.stdout.match(/Choose \[4\]/g) ?? []).length, 1, 'signed in: straight to the next step');
   } finally { s.done(); }
 });
 
