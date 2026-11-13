@@ -30,5 +30,12 @@ export const CLAUDE_MODELS = [
   { id: 'fable', name: 'Fable', note: 'latest' },
 ];
 
+// The Codex CLI picks its own default (the plan's best model); these are only suggestions for the picker.
+export const CODEX_MODELS = [
+  { id: 'gpt-5.1-codex', name: 'GPT-5.1 Codex', note: 'coding work' },
+  { id: 'gpt-5.1', name: 'GPT-5.1', note: 'general' },
+  { id: 'gpt-5.1-codex-mini', name: 'GPT-5.1 Codex Mini', note: 'light and fast' },
+];
+
 // Anthropic's endpoint rejects requests without this version header (HTTP 400).
 export const extraHeaders = (base_url) => (/(^|\/\/)api\.anthropic\.com/.test(String(base_url)) ? { 'anthropic-version': '2023-06-01' } : {});

@@ -3,17 +3,20 @@
 // An install whose config.json names no providersFile keeps running the local claude CLI as before.
 import path from 'node:path';
 import { createApiEngine } from './api-engine.js';
+import { createCodexEngine } from './codex-engine.js';
 import { chatCompletions } from './chat-completions.js';
 import { createProviderStore, defaultEnvFile } from './config.js';
 import { createModelCache, fetchModels, modelOptions, modelInfo } from './models.js';
-import { CATALOG, CLAUDE_MODELS } from './catalog.js';
+import { CATALOG, CLAUDE_MODELS, CODEX_MODELS } from './catalog.js';
 import { TaskError } from '../task-service.js';
 
+// sonnet, opus and haiku are Claude aliases and mean nothing to Codex.
+const CLAUDE_ALIAS = /^(opus|sonnet|haiku|fable)(\[.*\])?$/;
 const TRANSPORTS = { chat_completions: chatCompletions };
 
 export const coreFileOf = (config) => (config.projectLayerFile ? path.join(path.dirname(config.projectLayerFile), 'core.md') : null);
 
-export function createProviderLayer({ config, cliEngine, fetchImpl = fetch }) {
+export function createProviderLayer({ config, cliEngine, codexEngine = null, fetchImpl = fetch }) {
   if (!config.providersFile) {
     return { managed: false, store: null, cache: null, engine: cliEngine, active: () => ({ id: 'claude', transport: 'claude_cli', model: '' }), options: () => modelOptions({ store: null }), info: () => null };
   }
@@ -26,6 +29,7 @@ export function createProviderLayer({ config, cliEngine, fetchImpl = fetch }) {
     return p ? { id: primary, transport: p.transport, model: p.model ?? '' } : null;
   };
 
+  const codex = codexEngine ?? createCodexEngine({ command: config.codexPath ?? 'codex', baseArgs: config.codexBaseArgs ?? [] });
   const failing = (message) => ({
     pid: null,
     stop() {},
@@ -41,6 +45,7 @@ export function createProviderLayer({ config, cliEngine, fetchImpl = fetch }) {
       const provider = opts.provider ? providers[opts.provider] : primary ? providers[primary] : null;
       if (!provider) return failing('No model provider is set. Add one in Settings > Model, or run the installer wizard again.');
       if (provider.transport === 'claude_cli') return cliEngine.run({ ...opts, model: opts.model ?? provider.model }, onLine);
+      if (provider.transport === 'codex_cli') return codex.run({ ...opts, model: opts.model && !CLAUDE_ALIAS.test(opts.model) ? opts.model : provider.model }, onLine);
       const transport = TRANSPORTS[provider.transport];
       if (!transport) return failing(`Unknown transport in the providers file: ${provider.transport}`);
       return createApiEngine({ provider, apiKey: store.keyOf(provider), transport, fetchImpl, coreFile: coreFileOf(config), name: engine.name }).run(opts, onLine);
@@ -48,12 +53,16 @@ export function createProviderLayer({ config, cliEngine, fetchImpl = fetch }) {
   };
 
   // One short call that proves the key, the address and the model. The CLI is only asked for its version: no quota spent.
-  async function test(id, claudeStatus) {
+  async function test(id, claudeStatus, codexStatus = async () => ({ ok: false })) {
     const provider = store.load().providers[id];
     if (!provider) return { ok: false, error: `unknown provider: ${id}` };
     if (provider.transport === 'claude_cli') {
       const s = await claudeStatus();
       return s.ok ? { ok: true, text: s.version ?? 'claude found' } : { ok: false, error: 'the claude command was not found' };
+    }
+    if (provider.transport === 'codex_cli') {
+      const s = await codexStatus();
+      return s.ok ? { ok: true, text: s.version ?? 'codex found' } : { ok: false, error: 'the codex command was not found. Install it and run `codex login`.' };
     }
     const handle = createApiEngine({ provider, apiKey: store.keyOf(provider), transport: TRANSPORTS[provider.transport], fetchImpl, retryDelayMs: 500 });
     let result = null;
@@ -67,6 +76,7 @@ export function createProviderLayer({ config, cliEngine, fetchImpl = fetch }) {
     const p = store.load().providers[id];
     if (!p) throw new TaskError('not_found', `unknown provider: ${id}`);
     if (p.transport === 'claude_cli') return { fetchedAt: null, models: CLAUDE_MODELS };
+    if (p.transport === 'codex_cli') return { fetchedAt: null, models: CODEX_MODELS };
     try { return cache.set(id, await fetchModels({ base_url: p.base_url, apiKey: store.keyOf(p), fetchImpl })); } catch (e) { throw new TaskError('unavailable', e.message); }
   }
   // Before saving (the add wizard): list the models of an address with a key typed now or one already in .env.

@@ -381,7 +381,7 @@ export default function Cognition({ workspace: fixedWs = null, initialWorkspace,
     setModelOpts(o);
     const c = o.current;
     const row = o.providers.find((p) => p.id === c?.provider);
-    if (row) setDraft((d) => (d.touched ? d : { ...d, engine: row.transport === "claude_cli" ? CLAUDE : row.id, model: c.model ?? "" }));
+    if (row && row.transport !== "codex_cli") setDraft((d) => (d.touched ? d : { ...d, engine: row.transport === "claude_cli" ? CLAUDE : row.id, model: c.model ?? "" }));
   }).catch(() => {}), []);
   const loadSessions = useCallback(() => { if (ws) api.chatSessions(ws).then((r) => setSessions(r.sessions)).catch((e) => setError(e.message)); }, [ws]);
   const loadQuick = useCallback(() => { if (ws) api.chatQuick(ws).then((r) => setQuick({ items: r.items ?? [], all: r.all ?? [] })).catch(() => {}); }, [ws]);
@@ -872,7 +872,7 @@ export default function Cognition({ workspace: fixedWs = null, initialWorkspace,
           </DialogFooter>
         </DialogContent>
       </Dialog>
-      <ModelPicker open={modelPicker} onClose={() => setModelPicker(false)} options={modelOpts} mode="session"
+      <ModelPicker open={modelPicker} onClose={() => setModelPicker(false)} options={modelOpts && { ...modelOpts, providers: modelOpts.providers.filter((p) => p.transport !== "codex_cli") }} mode="session"
         current={{ provider: providerOfEngine(opts.engine), model: opts.model ?? "" }}
         onApply={pickModel} onRefresh={async (id) => { await api.refreshProviderModels(id); await loadModelOpts(); }} />
       <UsageDialog open={showUsage} onClose={() => setShowUsage(false)} stats={stats} rate={usage.rate} rateTs={usage.rateTs} apiChat={isApiEngine} />

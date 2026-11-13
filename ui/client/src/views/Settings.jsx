@@ -18,6 +18,8 @@ import SuggestSettings from "./SuggestSettings.jsx";
 
 const S = () => T.views.settings;
 const CLI_MODELS = ["sonnet", "opus", "haiku", "fable"];
+const CODEX_MODELS = ["gpt-5.1-codex", "gpt-5.1", "gpt-5.1-codex-mini"];
+const isCliTransport = (t) => t === "claude_cli" || t === "codex_cli";
 const host = (u) => { try { return new URL(u).host; } catch { return u ?? ""; } };
 const day = (iso) => (iso ? new Date(iso).toLocaleDateString("id-ID", { day: "numeric", month: "short" }) : "");
 
@@ -101,7 +103,7 @@ function ModelSettings({ onChanged }) {
         {data.providers.length === 0 && <p className="px-5 py-4 text-sm text-muted-foreground">{s.none}</p>}
         {data.providers.map((p) => {
           const o = rowOf(p.id);
-          const cli = p.transport === "claude_cli";
+          const cli = isCliTransport(p.transport);
           const r = results[p.id];
           return (
             <div key={p.id} className="grid gap-2 px-4 py-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:gap-6 sm:px-5">
@@ -113,7 +115,7 @@ function ModelSettings({ onChanged }) {
                   <span className="flex min-w-0 flex-wrap items-center gap-1.5">
                     <b className="truncate text-sm">{o?.label ?? p.id}</b>
                     {cur?.provider === p.id && <Badge className="gap-1"><Star className="size-3 fill-current" />{T.views.models.main}</Badge>}
-                    <Badge variant="outline">{cli ? s.cli : s.api}</Badge>
+                    <Badge variant="outline">{p.transport === "codex_cli" ? s.codex : cli ? s.cli : s.api}</Badge>
                     {!cli && (p.key_env
                       ? <Badge variant="outline" className={p.hasKey ? "text-positive" : "text-warning"}><KeyRound className="size-3" />{p.hasKey ? s.keyOk : s.noKey}</Badge>
                       : <Badge variant="outline">{s.local}</Badge>)}
@@ -173,7 +175,8 @@ function ProviderDialog({ open, initial, taken, catalog, onClose, onSaved }) {
 
   const freeId = (id) => { let n = id; let i = 2; while (taken.includes(n)) n = `${id}-${i++}`; return n; };
   const choose = (c) => {
-    if (c === "cli") setF({ ...blank, id: freeId("claude"), transport: "claude_cli", label: s.cli });
+    if (c === "codex") setF({ ...blank, id: freeId("codex"), transport: "codex_cli", label: s.codex });
+    else if (c === "cli") setF({ ...blank, id: freeId("claude"), transport: "claude_cli", label: s.cli });
     else if (c === "custom") setF({ ...blank, id: freeId("custom"), label: s.custom });
     else setF({ ...blank, id: freeId(c.id), base_url: c.base_url, key_env: c.key_env, label: c.label, keys_url: c.keys_url ?? "", note: c.note ?? "", hasKey: !!c.hasKey });
     setStep("form");
@@ -209,7 +212,7 @@ function ProviderDialog({ open, initial, taken, catalog, onClose, onSaved }) {
       <DialogContent className="max-w-3xl">
         <DialogHeader className="border-b px-6 pt-5 pb-3 text-left">
           <DialogTitle>{initial ? s.editTitle : step === "pick" ? s.pickTitle : `${s.addTitle}: ${f.label}`}</DialogTitle>
-          <DialogDescription>{step === "pick" ? s.pickIntro : f.note || (isApi ? host(f.base_url) : s.cliNote)}</DialogDescription>
+          <DialogDescription>{step === "pick" ? s.pickIntro : f.note || (isApi ? host(f.base_url) : f.transport === "codex_cli" ? s.codexNote : s.cliNote)}</DialogDescription>
         </DialogHeader>
 
         {step === "pick" ? (
@@ -220,6 +223,7 @@ function ProviderDialog({ open, initial, taken, catalog, onClose, onSaved }) {
             </div>
             <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
               {!query && <PickCard title="Claude Code" hint={s.cliHint} icon={Zap} onClick={() => choose("cli")} />}
+              {!query && <PickCard title="Codex (ChatGPT)" hint={s.codexHint} icon={Zap} onClick={() => choose("codex")} />}
               {list.map((c) => <PickCard key={c.id} title={c.label} hint={c.local ? c.note : host(c.base_url)} badge={c.hasKey ? s.keySaved : null} onClick={() => choose(c)} />)}
               <PickCard title={s.custom} hint={s.customHint} icon={Plus} onClick={() => choose("custom")} />
             </div>
@@ -236,9 +240,9 @@ function ProviderDialog({ open, initial, taken, catalog, onClose, onSaved }) {
                   </div>
                 </Field>
               ) : (
-                <Field label={s.cliModel} hint={s.cliModelHint}>
+                <Field label={s.cliModel} hint={f.transport === "codex_cli" ? s.codexModelHint : s.cliModelHint}>
                   <SelectField label={s.cliModel} value={f.model || "_default"} onChange={(v) => set({ model: v === "_default" ? "" : v })}
-                    options={[{ value: "_default", label: T.views.models.cliDefault }, ...CLI_MODELS.map((m) => ({ value: m, label: m }))]} className="w-full" />
+                    options={[{ value: "_default", label: T.views.models.cliDefault }, ...(f.transport === "codex_cli" ? CODEX_MODELS : CLI_MODELS).map((m) => ({ value: m, label: m }))]} className="w-full" />
                 </Field>
               )}
             </div>

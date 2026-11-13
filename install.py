@@ -55,7 +55,7 @@ CLI_HELP = {
         "docs": "https://code.claude.com/docs/en/setup",
     },
     "codex": {
-        "win32": None,
+        "win32": "npm install -g @openai/codex",
         "other": "curl -fsSL https://chatgpt.com/codex/install.sh | sh",
         "docs": "https://learn.chatgpt.com/docs/codex/cli",
     },
@@ -398,12 +398,14 @@ ID = {
     "  ok: {reply}": "  ok: {reply}",
     "  The test failed: {err}\n  The provider is saved; fix it in Settings > Model or run the wizard again.": "  Tes gagal: {err}\n  Provider tersimpan; perbaiki di Settings > Model atau jalankan wizard lagi.",
     "\n== Model provider ==": "\n== Provider model ==",
-    "Skills and the UI need a model. Use the claude command (your own sign-in), or an API key from an OpenAI-compatible endpoint.": "Skills dan UI butuh model. Pakai perintah claude (login Anda sendiri), atau API key dari endpoint yang kompatibel dengan OpenAI.",
+    "Skills and the UI need a model. Use the claude or codex command (your own sign-in), or an API key from an OpenAI-compatible endpoint.": "Skills dan UI butuh model. Pakai perintah claude atau codex (login Anda sendiri), atau API key dari endpoint yang kompatibel dengan OpenAI.",
     "Already set: {names} (primary: {primary})": "Sudah diatur: {names} (utama: {primary})",
     "\n  1. Claude Code CLI": "\n  1. Claude Code CLI",
     " (not found yet)": " (belum ditemukan)",
     "  2. API key or gateway (OpenRouter, OpenAI, Ollama, other)": "  2. API key atau gateway (OpenRouter, OpenAI, Ollama, lainnya)",
-    "  3. Done / skip for now": "  3. Selesai / lewati dulu",
+    "  3. Codex CLI (ChatGPT plan, no key)": "  3. Codex CLI (langganan ChatGPT, tanpa key)",
+    "  4. Done / skip for now": "  4. Selesai / lewati dulu",
+    "  Added. Sign in by running `codex login` yourself; this kit never handles that login. It runs skills and jobs; the UI chat uses Claude Code or an API provider.": "  Ditambahkan. Login dengan menjalankan `codex login` sendiri; kit ini tidak pernah menangani login itu. Codex menjalankan skill dan job; chat UI memakai Claude Code atau provider API.",
     "  Not found. Install it, open a new terminal, and run the wizard again.": "  Tidak ditemukan. Pasang, buka terminal baru, lalu jalankan wizard lagi.",
     "  Added. Sign in by running `claude` yourself; this kit never handles that login.": "  Ditambahkan. Login dengan menjalankan `claude` sendiri; kit ini tidak pernah menangani login itu.",
     "\nProviders: {names}": "\nProvider: {names}",
@@ -599,6 +601,12 @@ def ask_model(provider: dict, env: dict, prompt: str):
                 return None
             r = subprocess.run([exe, "-p"], input=prompt, capture_output=True, text=True, encoding="utf-8", timeout=180)
             return r.stdout.strip() if r.returncode == 0 else None
+        if provider.get("transport") == "codex_cli":
+            exe = which("codex")
+            if not exe:
+                return None
+            r = subprocess.run([exe, "exec", "--skip-git-repo-check", "--sandbox", "read-only", "-"], input=prompt, capture_output=True, text=True, encoding="utf-8", timeout=300)
+            return r.stdout.strip() if r.returncode == 0 else None
         return chat(provider, env.get(provider.get("key_env", "")), prompt)
     except (RuntimeError, OSError, subprocess.SubprocessError) as e:
         print(f"  model call failed: {e}")
@@ -682,15 +690,16 @@ def add_api_provider(data: dict, env_file: Path) -> None:
 
 def step_provider(found: dict, env_file: Path) -> dict:
     say("\n== Model provider ==")
-    say("Skills and the UI need a model. Use the claude command (your own sign-in), or an API key from an OpenAI-compatible endpoint.")
+    say("Skills and the UI need a model. Use the claude or codex command (your own sign-in), or an API key from an OpenAI-compatible endpoint.")
     data = load_providers()
     if data["providers"]:
         say("Already set: {names} (primary: {primary})", names=", ".join(data["providers"]), primary=data["primary"] or T("none"))
     while True:
         print("\n  1. Claude Code CLI" + ("" if found["claude"] else T(" (not found yet)")))
         say("  2. API key or gateway (OpenRouter, OpenAI, Ollama, other)")
-        say("  3. Done / skip for now")
-        choice = ask("Choose", "3")
+        print("  3. Codex CLI (ChatGPT plan, no key)" + ("" if found["codex"] else T(" (not found yet)")))
+        say("  4. Done / skip for now")
+        choice = ask("Choose", "4")
         if choice == "1":
             found["claude"] = which("claude")
             if not found["claude"]:
@@ -704,6 +713,16 @@ def step_provider(found: dict, env_file: Path) -> dict:
             say("  Added. Sign in by running `claude` yourself; this kit never handles that login.")
         elif choice == "2":
             add_api_provider(data, env_file)
+        elif choice == "3":
+            found["codex"] = which("codex")
+            if not found["codex"]:
+                show_cli_help("codex")
+                found["codex"] = which("codex") if ask_yes("Check again now?", False) else None
+                if not found["codex"]:
+                    say("  Not found. Install it, open a new terminal, and run the wizard again.")
+                    continue
+            data["providers"]["codex"] = {"transport": "codex_cli"}
+            say("  Added. Sign in by running `codex login` yourself; this kit never handles that login. It runs skills and jobs; the UI chat uses Claude Code or an API provider.")
         else:
             break
         save_providers(data)

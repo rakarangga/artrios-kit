@@ -4,7 +4,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { atomicWrite } from '../lock.js';
-import { CATALOG, CLAUDE_MODELS, extraHeaders } from './catalog.js';
+import { CATALOG, CLAUDE_MODELS, CODEX_MODELS, extraHeaders } from './catalog.js';
 import { modelsOf, numOf } from './config.js';
 
 const MAX_MODELS = 2000;
@@ -73,6 +73,7 @@ export function modelOptions({ store, cache }) {
   }
   const { primary, providers } = store.load();
   const rows = Object.entries(providers).map(([id, p]) => {
+    if (p.transport === 'codex_cli') return { id, label: id === 'codex' ? 'Codex (ChatGPT plan)' : id, transport: p.transport, ready: true, hasKey: true, model: p.model ?? '', models: CODEX_MODELS.map((m) => ({ ...m, context: null, priceIn: null, priceOut: null })), fetchedAt: null };
     if (p.transport === 'claude_cli') return { id, label: id === 'claude' ? 'Claude Code' : id, transport: p.transport, ready: true, hasKey: true, model: p.model ?? '', models: CLAUDE_MODELS.map((m) => ({ ...m, context: null, priceIn: null, priceOut: null })), fetchedAt: null };
     const c = cache?.get(id);
     const listed = new Map((c?.models ?? []).map((m) => [m.id, m]));

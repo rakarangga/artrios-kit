@@ -388,7 +388,7 @@ ${text}`;
       if (id && !parts[3] && method === 'PUT') return send(res, 200, { managed: true, ...providers.store.put(id, await readJson(req)) });
       if (id && !parts[3] && method === 'DELETE') return send(res, 200, { managed: true, ...providers.store.remove(id) });
       if (id && parts[3] === 'primary' && method === 'POST') return send(res, 200, { managed: true, ...providers.store.setPrimary(id) });
-      if (id && parts[3] === 'test' && method === 'POST') return send(res, 200, await providers.test(id, extras.claudeStatus));
+      if (id && parts[3] === 'test' && method === 'POST') return send(res, 200, await providers.test(id, extras.claudeStatus, extras.codexStatus));
       return send(res, 404, { error: 'not found' });
     }
     if (parts[0] === 'kit' && parts[1] === 'update') {

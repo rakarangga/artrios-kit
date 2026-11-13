@@ -123,7 +123,7 @@ test('wizard --lang id speaks Indonesian and the ending says what to do without 
 test('wizard onboarding form asks the seven questions in Indonesian and defaults the reply language', opts, () => {
   const s = sandbox();
   try {
-    const answers = ['3', 'n', 'y', '', '', 'Saya pemilik toko', '.', '', '.', 'Satu, dua', '.', '', '.', '', '.', '', '.', '', '.'].join('\n') + '\n';
+    const answers = ['4', 'n', 'y', '', '', 'Saya pemilik toko', '.', '', '.', 'Satu, dua', '.', '', '.', '', '.', '', '.', '', '.'].join('\n') + '\n';
     const r = py(s, ['--wizard', '--lang', 'id'], answers);
     assert.equal(r.status, 0, r.stderr + r.stdout);
     assert.match(r.stdout, /Siapa Anda, apa yang Anda tawarkan/);
@@ -161,6 +161,25 @@ test('WSL: node or npm found only under /mnt/<drive>/ counts as missing; a Linux
   assert.equal(b, '/mnt/c/Program Files/nodejs/node.exe');
 });
 
+test('wizard: the Codex CLI option needs the command, then writes a codex_cli provider and no key', opts, () => {
+  const s = sandbox();
+  try {
+    const bin = path.join(s.root, 'bin');
+    fs.mkdirSync(bin);
+    const isWin = process.platform === 'win32';
+    fs.writeFileSync(path.join(bin, isWin ? 'codex.cmd' : 'codex'), isWin ? '@echo off\r\necho codex-cli 1.0\r\n' : '#!/bin/sh\necho codex-cli 1.0\n', { mode: 0o755 });
+    const run = (answers, withCodex) => spawnSync(PY, [path.join(s.kit, 'install.py'), '--home', s.home, '--wizard'], { input: answers.join('\n') + '\n', encoding: 'utf8', env: { ...process.env, PYTHONIOENCODING: 'utf-8', ...(withCodex ? { PATH: `${bin}${path.delimiter}${process.env.PATH}` } : {}) } });
+    // With the command: a keyless codex_cli provider that becomes the primary.
+    const r = run(['3', '4', 'n', 'n'], true);
+    assert.equal(r.status, 0, r.stdout + r.stderr);
+    const yaml = fs.readFileSync(path.join(s.kit, 'artrios', 'providers.yaml'), 'utf8');
+    assert.match(yaml, /^primary: codex$/m);
+    assert.match(yaml, /transport: "codex_cli"/);
+    assert.ok(!/key_env/.test(yaml));
+    assert.match(r.stdout, /codex login/);
+  } finally { s.done(); }
+});
+
 test('wizard end to end: API provider tested against a real local endpoint, key only in .env, form writes first-day files, re-run keeps answers', opts, async () => {
   const s = sandbox();
   const seen = [];
@@ -179,7 +198,7 @@ test('wizard end to end: API provider tested against a real local endpoint, key 
   try {
     const answers = [
       '2', '4', base, 'MY_KEY', 'my-gw', 'model-x', secret, // API provider, preset "other"
-      '3', // done with providers
+      '4', // done with providers
       'n', // no UI
       'y', 'Ana', 'English', // onboarding
       'Founder of a small shop.', '.', 'Hi team, numbers attached.', '.', '.', '1. Ship v2 by March\n2) Reach 100 customers', '.',
@@ -212,7 +231,7 @@ test('wizard end to end: API provider tested against a real local endpoint, key 
     assert.ok(!read('aios-intake.md').includes('[Your answer here]'));
 
     // Same machine, second run: answers are kept, nothing is asked again, unchanged files are not rewritten.
-    const again = await pyAsync(s, ['--wizard'], ['3', 'n', 'y', '', ''].join('\n') + '\n');
+    const again = await pyAsync(s, ['--wizard'], ['4', 'n', 'y', '', ''].join('\n') + '\n');
     assert.equal(again.status, 0, again.stdout);
     assert.match(again.stdout, /Q7: already answered, kept\./);
     assert.match(again.stdout, /Written: nothing changed/);
@@ -227,11 +246,11 @@ test('wizard end to end: API provider tested against a real local endpoint, key 
 test('changed answer: the old file is backed up to archives/intake-*', opts, async () => {
   const s = sandbox();
   try {
-    const form = ['3', 'n', 'y', 'Ana', 'English', 'Me.', '.', 'Sample.', '.', '.', '1. One', '.', 'R', '.', 'C', '.', 'D', '.', 'T', '.'].join('\n') + '\n';
+    const form = ['4', 'n', 'y', 'Ana', 'English', 'Me.', '.', 'Sample.', '.', '.', '1. One', '.', 'R', '.', 'C', '.', 'D', '.', 'T', '.'].join('\n') + '\n';
     assert.equal((await pyAsync(s, ['--wizard'], form)).status, 0);
     const intake = path.join(s.kit, 'aios-intake.md');
     fs.writeFileSync(intake, fs.readFileSync(intake, 'utf8').replace('1. One', '1. Two'));
-    assert.equal((await pyAsync(s, ['--wizard'], ['3', 'n', 'y', '', ''].join('\n') + '\n')).status, 0);
+    assert.equal((await pyAsync(s, ['--wizard'], ['4', 'n', 'y', '', ''].join('\n') + '\n')).status, 0);
     assert.match(fs.readFileSync(path.join(s.kit, 'context', 'priorities.md'), 'utf8'), /1\. Two/);
     const backups = fs.readdirSync(path.join(s.kit, 'archives'));
     assert.equal(backups.length, 1);

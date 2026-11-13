@@ -323,7 +323,7 @@ export function createChatService({ config = {}, chatDir = null, fallbackDir = n
     const out = [{ id: CLAUDE_ENGINE, label: 'Claude Code', transport: CLAUDE_ENGINE, models: [], ready: true, priced: true }];
     if (!providerStore) return { engines: out, managed: false };
     for (const [id, p] of Object.entries(providerStore.load().providers)) {
-      if (p.transport === 'claude_cli') continue;
+      if (p.transport === 'claude_cli' || p.transport === 'codex_cli') continue; // Codex runs jobs, not the Cognition chat (yet)
       out.push({ id, label: id, transport: p.transport, model: p.model ?? '', models: modelsOf(p), ready: !p.key_env || Boolean(providerStore.keyOf(p)), priced: numOf(p.price_in) !== null || numOf(p.price_out) !== null, contextWindow: numOf(p.context_window) });
     }
     return { engines: out, managed: true };
@@ -332,6 +332,7 @@ export function createChatService({ config = {}, chatDir = null, fallbackDir = n
     if (!engine || engine === CLAUDE_ENGINE) return CLAUDE_ENGINE;
     const p = providerStore?.load().providers[engine];
     if (!p) throw new ChatError('invalid', `unknown engine: ${engine}`);
+    if (p.transport === 'codex_cli') throw new ChatError('invalid', 'The Codex subscription runs skills and jobs, not this chat yet. Pick Claude Code or an API provider.');
     return p.transport === 'claude_cli' ? CLAUDE_ENGINE : engine;
   }
 

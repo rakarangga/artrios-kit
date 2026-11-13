@@ -13,7 +13,7 @@ import path from 'node:path';
 import { atomicWrite } from '../lock.js';
 import { TaskError } from '../task-service.js';
 
-export const TRANSPORTS = ['chat_completions', 'claude_cli'];
+export const TRANSPORTS = ['chat_completions', 'claude_cli', 'codex_cli'];
 const ID_RE = /^[a-z0-9][a-z0-9-]{0,39}$/;
 const KEY_ENV_RE = /^[A-Z][A-Z0-9_]{0,63}$/;
 const FIELDS = ['transport', 'base_url', 'key_env', 'model', 'models', 'price_in', 'price_out', 'context_window'];

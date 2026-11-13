@@ -43,7 +43,7 @@ export function ModelPicker({ open, onClose, options, current, mode = "session",
   const sel = providers.find((p) => p.id === slug) ?? null;
   // A query that only found the provider by its name keeps the whole model list (provider-only match).
   const providerOnly = sel && q && hits(`${sel.label} ${sel.id}`, q) && !sel.models.some((m) => hits(`${m.id} ${m.name ?? ""}`, q));
-  const isCli = sel?.transport === "claude_cli";
+  const isCli = sel?.transport === "claude_cli" || sel?.transport === "codex_cli";
   const rows = useMemo(() => {
     if (!sel) return [];
     const base = isCli ? [{ id: "", name: s.cliDefault, note: s.cliDefaultHint }, ...sel.models] : sel.models;
@@ -92,7 +92,7 @@ export function ModelPicker({ open, onClose, options, current, mode = "session",
                     {p.id === options?.current?.provider && <Star className="size-3 shrink-0 fill-primary text-primary" aria-label={s.main} />}
                   </span>
                   <span className={cn("truncate text-[11px]", p.ready ? "text-muted-foreground" : "text-warning")}>
-                    {!p.ready ? s.noKey : p.transport === "claude_cli" ? s.cliShort : `${p.models.length} ${s.modelsCount}`}
+                    {!p.ready ? s.noKey : p.transport === "claude_cli" ? s.cliShort : p.transport === "codex_cli" ? s.codexShort : `${p.models.length} ${s.modelsCount}`}
                   </span>
                 </button>
               </li>

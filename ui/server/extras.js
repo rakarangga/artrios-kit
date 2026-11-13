@@ -225,5 +225,18 @@ export function createExtras({ config = {}, spawn = realSpawn } = {}) {
     });
   }
 
-  return { review, openIn, changelog, context, roadmapGet, roadmapPut, mcp, worktrees, files, saveImage, readImage, browseFolder, claudeStatus };
+  // The same check for the Codex CLI (Settings > Model test button), cached for a minute.
+  let codexCached = null;
+  function codexStatus() {
+    if (codexCached && Date.now() - codexCached.at < 60000) return Promise.resolve(codexCached.value);
+    return new Promise((resolve) => {
+      execFile(config.codexPath ?? 'codex', ['--version'], { timeout: 6000, windowsHide: true }, (err, out) => {
+        const value = err ? { ok: false } : { ok: true, version: clip(String(out).trim().split('\n')[0], 60) };
+        codexCached = { at: Date.now(), value };
+        resolve(value);
+      });
+    });
+  }
+
+  return { review, openIn, changelog, context, roadmapGet, roadmapPut, mcp, worktrees, files, saveImage, readImage, browseFolder, claudeStatus, codexStatus };
 }
