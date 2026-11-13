@@ -17,7 +17,9 @@ Work-context kit for Artrios, an AI operating system layer for Claude Code and C
 | `LICENSE`, `NOTICE` | Apache-2.0 license and third-party notices |
 | `SECURITY.md`, `CHANGELOG.md` | How to report a problem; release notes |
 | `install.sh`, `install.ps1` | One-line bootstrap: clones a tag, starts the wizard |
-| `install.py` | The wizard, plain install, and uninstall |
+| `install.py` | The wizard, plain install, update, and uninstall |
+| `service.py` | Runs the UI and scheduler as one background service |
+| `docs/` | `user-guide.md` (install, use, update, remove) and `releasing.md` |
 
 ## Requirements
 
@@ -31,13 +33,13 @@ Work-context kit for Artrios, an AI operating system layer for Claude Code and C
 macOS and Linux:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/rakarangga/artrios-kit/kit-v0.2.0/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/rakarangga/artrios-kit/kit-v0.2.1/install.sh | bash
 ```
 
 Windows PowerShell:
 
 ```powershell
-irm https://raw.githubusercontent.com/rakarangga/artrios-kit/kit-v0.2.0/install.ps1 | iex
+irm https://raw.githubusercontent.com/rakarangga/artrios-kit/kit-v0.2.1/install.ps1 | iex
 ```
 
 This clones the kit to `~/artrios-kit` (set `ARTRIOS_KIT_DIR` to change it) and starts the wizard: it checks the machine, sets up a provider, installs core and skills, builds the UI, and asks the seven onboarding questions. Run it again any time with `python install.py --wizard`; it keeps what is set. It never installs `claude` or `codex` for you: it shows the command and you run it.
@@ -53,7 +55,7 @@ Remove it with `python install.py --uninstall --apply` (without `--apply` it onl
    ```bash
    git clone https://github.com/<owner>/artrios-kit.git
    cd artrios-kit
-   git checkout kit-v0.1.3        # install from a tag, not from main
+   git checkout kit-v0.2.1        # install from a tag, not from main
    ```
 
 2. Dry run, then install. Add `--pack <path>` only for a client pack kept in its own repository:
@@ -85,7 +87,7 @@ Same kit, headless. Assumes a Linux VPS with SSH access and a non-root user.
 
    ```bash
    git clone git@github.com:<owner>/artrios-kit.git ~/artrios-kit
-   cd ~/artrios-kit && git checkout kit-v0.1.3
+   cd ~/artrios-kit && git checkout kit-v0.2.1
    python3 install.py --apply --pack <path>   # drop --pack for the core only
    ```
 
@@ -95,9 +97,13 @@ Same kit, headless. Assumes a Linux VPS with SSH access and a non-root user.
 
 ## Update
 
+Releases are git tags `kit-vX.Y.Z`. When a newer tag exists, the UI header shows an **Update vX.Y.Z** button: it opens a decision with the changes, and **Update** switches the kit to the tag, rebuilds skills and UI, and restarts the service. Your own files are backed up and put back; a failed update returns to the previous version. The same from a terminal:
+
 ```bash
-cd artrios-kit && git fetch --tags && git checkout kit-vX.Y.Z
+python install.py --update kit-vX.Y.Z
 ```
+
+Details, and the three manual steps, are in `docs/user-guide.md` (section Update).
 
 `install.py` never overwrites: a skill folder that already exists with different content is reported as `SKIP`. Remove that skill folder from `~/.claude/skills` and `~/.codex/skills`, then run `python install.py --apply` again. `artrios/core.md` is read straight from the kit folder, so it updates with the checkout. Your own files (`profile.md`, `registry.md`, `inbox.md`, `activity.md`) change by use; keep a copy or `git stash` before switching tags.
 
@@ -126,6 +132,7 @@ Run a skill by typing its name in Claude Code (`/name`) or asking Codex to use i
 | `/codex-check` | Asks Codex, read-only, who it is in each registered folder and compares with the registry (manual) | `/codex-check [folder ...]` after changing `core.md` or the registry |
 | `/artrios-health` | Checks the Artrios layers: installed core, registry, inbox age, orphaned memory (manual) | `/artrios-health` |
 | `/excalidraw` | Builds `.excalidraw` diagrams or decks, renders PNG, fixes what the render shows | "make an architecture diagram"; needs Node, Python, Chromium (`pip install -r skills/excalidraw/requirements.txt`, `python -m playwright install chromium`) |
+| `/artrios-ui` | Installs or reinstalls the local web UI from the kit template, builds it, and prints the address (manual) | `/artrios-ui [target folder]`; needs Node.js 20+ |
 
 Skills that need a task tracker (`/task-sync`, `/task-review`) report "no tracker configured" and stop until `artrios/profile.md` names one. Skills that need a wiki (`/ingest-wiki`, the wiki step of `/compact-project`) skip it when the `Wiki` field says "none".
 
@@ -158,7 +165,9 @@ Kit konteks kerja untuk Artrios, lapisan sistem operasi AI untuk Claude Code dan
 | `LICENSE`, `NOTICE` | Lisensi Apache-2.0 dan catatan pihak ketiga |
 | `SECURITY.md`, `CHANGELOG.md` | Cara melaporkan masalah; catatan rilis |
 | `install.sh`, `install.ps1` | Bootstrap satu baris: klon tag, jalankan wizard |
-| `install.py` | Wizard, pemasangan biasa, dan uninstall |
+| `install.py` | Wizard, pemasangan biasa, update, dan uninstall |
+| `service.py` | Menjalankan UI dan scheduler sebagai satu service latar belakang |
+| `docs/` | `user-guide.md` (pasang, pakai, update, copot) dan `releasing.md` |
 
 ## Kebutuhan
 
@@ -172,13 +181,13 @@ Kit konteks kerja untuk Artrios, lapisan sistem operasi AI untuk Claude Code dan
 macOS dan Linux:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/rakarangga/artrios-kit/kit-v0.2.0/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/rakarangga/artrios-kit/kit-v0.2.1/install.sh | bash
 ```
 
 Windows PowerShell:
 
 ```powershell
-irm https://raw.githubusercontent.com/rakarangga/artrios-kit/kit-v0.2.0/install.ps1 | iex
+irm https://raw.githubusercontent.com/rakarangga/artrios-kit/kit-v0.2.1/install.ps1 | iex
 ```
 
 Perintah ini mengklon kit ke `~/artrios-kit` (ubah dengan `ARTRIOS_KIT_DIR`) lalu menjalankan wizard: mengecek mesin, menyiapkan provider, memasang inti dan skill, membangun UI, dan mengajukan tujuh pertanyaan onboarding. Jalankan lagi kapan saja dengan `python install.py --wizard`; yang sudah terisi tetap dipakai. Wizard tidak memasang `claude` atau `codex`: ia menampilkan perintahnya dan Anda yang menjalankan.
@@ -194,7 +203,7 @@ Copot dengan `python install.py --uninstall --apply` (tanpa `--apply` hanya mena
    ```bash
    git clone https://github.com/<pemilik>/artrios-kit.git
    cd artrios-kit
-   git checkout kit-v0.1.3        # pasang dari tag, bukan dari main
+   git checkout kit-v0.2.1        # pasang dari tag, bukan dari main
    ```
 
 2. Jalankan uji coba dulu, lalu pasang. Tambahkan `--pack <path>` hanya untuk paket klien yang disimpan di repo sendiri:
@@ -226,7 +235,7 @@ Kit yang sama, tanpa antarmuka. Asumsinya VPS Linux dengan akses SSH dan penggun
 
    ```bash
    git clone git@github.com:<pemilik>/artrios-kit.git ~/artrios-kit
-   cd ~/artrios-kit && git checkout kit-v0.1.3
+   cd ~/artrios-kit && git checkout kit-v0.2.1
    python3 install.py --apply --pack <path>      # hilangkan --pack untuk inti saja
    ```
 
@@ -236,9 +245,13 @@ Kit yang sama, tanpa antarmuka. Asumsinya VPS Linux dengan akses SSH dan penggun
 
 ## Pembaruan
 
+Rilis adalah tag git `kit-vX.Y.Z`. Bila ada tag yang lebih baru, header UI menampilkan tombol **Update vX.Y.Z**: ia membuka keputusan berisi perubahannya, dan **Update** memindahkan kit ke tag itu, membangun ulang skill dan UI, lalu menyalakan ulang service. Berkas milik Anda dicadangkan dan dikembalikan; pembaruan yang gagal kembali ke versi sebelumnya. Dari terminal:
+
 ```bash
-cd artrios-kit && git fetch --tags && git checkout kit-vX.Y.Z
+python install.py --update kit-vX.Y.Z
 ```
+
+Rincian dan tiga langkah manualnya ada di `docs/user-guide.md` (bagian Update).
 
 `install.py` tidak pernah menimpa: folder skill yang sudah ada dengan isi berbeda dilaporkan sebagai `SKIP`. Hapus folder skill itu dari `~/.claude/skills` dan `~/.codex/skills`, lalu jalankan `python install.py --apply` lagi. `artrios/core.md` dibaca langsung dari folder kit, jadi ikut berubah saat checkout. Berkas milik Anda (`profile.md`, `registry.md`, `inbox.md`, `activity.md`) berubah karena dipakai; simpan salinannya atau pakai `git stash` sebelum pindah tag.
 
@@ -267,6 +280,7 @@ Jalankan skill dengan mengetik namanya di Claude Code (`/nama`) atau meminta Cod
 | `/codex-check` | Menanyai Codex (baca-saja) siapa dirinya di tiap folder terdaftar dan membandingkan dengan registry (manual) | `/codex-check [folder ...]` setelah mengubah `core.md` atau registry |
 | `/artrios-health` | Mengecek lapisan Artrios: core terpasang, registry, usia inbox, memori yatim (manual) | `/artrios-health` |
 | `/excalidraw` | Membuat diagram atau deck `.excalidraw`, merender PNG, memperbaiki yang tampak di render | "buat diagram arsitektur"; butuh Node, Python, Chromium (`pip install -r skills/excalidraw/requirements.txt`, `python -m playwright install chromium`) |
+| `/artrios-ui` | Memasang atau memasang ulang UI web lokal dari templat kit, membangunnya, dan menampilkan alamatnya (manual) | `/artrios-ui [folder tujuan]`; butuh Node.js 20+ |
 
 Skill yang butuh pelacak tugas (`/task-sync`, `/task-review`) melapor "no tracker configured" lalu berhenti sampai `artrios/profile.md` menyebut satu. Skill yang butuh wiki (`/ingest-wiki`, langkah wiki di `/compact-project`) melewatinya bila field `Wiki` berisi "none".
 

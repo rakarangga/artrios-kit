@@ -9,13 +9,13 @@ Requirements: Python 3.9+, git, Node.js 20+ with npm (for the UI), and one model
 macOS and Linux:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/rakarangga/artrios-kit/kit-v0.2.0/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/rakarangga/artrios-kit/kit-v0.2.1/install.sh | bash
 ```
 
 Windows PowerShell:
 
 ```powershell
-irm https://raw.githubusercontent.com/rakarangga/artrios-kit/kit-v0.2.0/install.ps1 | iex
+irm https://raw.githubusercontent.com/rakarangga/artrios-kit/kit-v0.2.1/install.ps1 | iex
 ```
 
 The wizard clones the kit to `~/artrios-kit`, checks the machine, sets up a provider, installs core and skills, builds the UI, asks you to choose the administrator password, then asks whether to start the UI with the device (section 4). Run it again any time: `python install.py --wizard`. It keeps what is already set and never installs `claude` or `codex` for you.
@@ -100,13 +100,13 @@ Kebutuhan: Python 3.9+, git, Node.js 20+ dengan npm (untuk UI), dan satu model (
 macOS dan Linux:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/rakarangga/artrios-kit/kit-v0.2.0/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/rakarangga/artrios-kit/kit-v0.2.1/install.sh | bash
 ```
 
 Windows PowerShell:
 
 ```powershell
-irm https://raw.githubusercontent.com/rakarangga/artrios-kit/kit-v0.2.0/install.ps1 | iex
+irm https://raw.githubusercontent.com/rakarangga/artrios-kit/kit-v0.2.1/install.ps1 | iex
 ```
 
 Wizard mengklon kit ke `~/artrios-kit`, mengecek mesin, menyiapkan provider, memasang inti dan skill, membangun UI, meminta Anda memilih password administrator, lalu bertanya apakah UI dijalankan otomatis bersama perangkat (bagian 4). Jalankan lagi kapan saja: `python install.py --wizard`. Yang sudah terisi tetap dipakai, dan wizard tidak memasang `claude` atau `codex` untuk Anda.

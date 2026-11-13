@@ -11,7 +11,7 @@ A fix that must reach users needs a tag. A commit on `main` alone does not reach
 1. `main` is clean and up to date: `git status`, `git pull --ff-only`.
 2. Tests pass: `cd ui && npm test`.
 3. `CHANGELOG.md`: rename `## Unreleased` to `## kit-vX.Y.Z+1 - YYYY-MM-DD` and add a new empty `## Unreleased` above it. One line per user-visible change.
-4. `ui/package.json`: set `version` to `X.Y.Z+1`.
+4. `ui/package.json`: set `version` to `X.Y.Z+1`. Also set the pinned tag in `install.sh`, `install.ps1`, `README.md` (English and Indonesian) and `docs/user-guide.md` to `kit-vX.Y.Z+1`: `grep -rn "kit-v[0-9]" install.sh install.ps1 README.md docs` must show only the new tag.
 5. Commit: `chore(release): kit-vX.Y.Z+1`.
 6. Tag: `git tag -a kit-vX.Y.Z+1 -m "kit-vX.Y.Z+1"`.
 7. Push the commit and the tag: `git push origin main` then `git push origin kit-vX.Y.Z+1`.

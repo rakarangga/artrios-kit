@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Artrios kit bootstrap for macOS and Linux:
-#   curl -fsSL https://raw.githubusercontent.com/rakarangga/artrios-kit/kit-v0.2.0/install.sh | bash
+#   curl -fsSL https://raw.githubusercontent.com/rakarangga/artrios-kit/kit-v0.2.1/install.sh | bash
 # Clones the tagged kit to a fixed folder, then runs the wizard (install.py). Overrides for testing or a fork:
 # ARTRIOS_KIT_REPO, ARTRIOS_KIT_TAG, ARTRIOS_KIT_DIR, ARTRIOS_KIT_ARGS.
 # Everything sits in main so a partial download runs nothing.
@@ -8,7 +8,7 @@ set -eu
 
 main() {
   repo="${ARTRIOS_KIT_REPO:-https://github.com/rakarangga/artrios-kit.git}"
-  tag="${ARTRIOS_KIT_TAG:-kit-v0.2.0}"
+  tag="${ARTRIOS_KIT_TAG:-kit-v0.2.1}"
   dir="${ARTRIOS_KIT_DIR:-$HOME/artrios-kit}"
 
   command -v git >/dev/null 2>&1 || { echo "git is required. Install it, then run this again." >&2; exit 1; }

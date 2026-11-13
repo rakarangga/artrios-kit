@@ -1,12 +1,12 @@
 # Artrios kit bootstrap for Windows PowerShell:
-#   irm https://raw.githubusercontent.com/rakarangga/artrios-kit/kit-v0.2.0/install.ps1 | iex
+#   irm https://raw.githubusercontent.com/rakarangga/artrios-kit/kit-v0.2.1/install.ps1 | iex
 # Clones the tagged kit to a fixed folder, then runs the wizard (install.py). Overrides for testing or a fork:
 # ARTRIOS_KIT_REPO, ARTRIOS_KIT_TAG, ARTRIOS_KIT_DIR, ARTRIOS_KIT_ARGS.
 # Runs inside a function and uses no "exit": under iex, exit would close the user's terminal.
 function Install-ArtriosKit {
   $ErrorActionPreference = 'Stop'
   $repo = if ($env:ARTRIOS_KIT_REPO) { $env:ARTRIOS_KIT_REPO } else { 'https://github.com/rakarangga/artrios-kit.git' }
-  $tag = if ($env:ARTRIOS_KIT_TAG) { $env:ARTRIOS_KIT_TAG } else { 'kit-v0.2.0' }
+  $tag = if ($env:ARTRIOS_KIT_TAG) { $env:ARTRIOS_KIT_TAG } else { 'kit-v0.2.1' }
   $dir = if ($env:ARTRIOS_KIT_DIR) { $env:ARTRIOS_KIT_DIR } else { Join-Path $HOME 'artrios-kit' }
 
   if (-not (Get-Command git -ErrorAction SilentlyContinue)) { Write-Host 'git is required. Install Git for Windows, open a new terminal, and run this again.'; return }
