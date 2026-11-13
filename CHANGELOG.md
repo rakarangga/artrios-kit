@@ -8,7 +8,7 @@ Format follows Keep a Changelog. Versions are tags `kit-vX.Y.Z`.
 
 - UI: Update button. When a newer release tag (`kit-vX.Y.Z`) exists on the kit's origin, the header shows **Update vX.Y.Z**; it opens a Putusan case with the CHANGELOG, then Update switches the kit to the tag, rebuilds skills and UI, and restarts the service. Your own files (`profile.md`, `registry.md`, `inbox.md`, `activity.md`) are backed up to `~/.artrios/backup/` and put back; a failed update rolls back to the previous version. Commits on `main` after the last tag show only as "N unreleased commits", without a button. Also `python install.py --update kit-vX.Y.Z`.
 - `install.py --apply` rebuilds `apps/artrios-ui` (scaffold, npm install, build) when its version differs from `ui/`, keeping `data/`, port and password; a running service is stopped and started again. The manual wizard step in the update guide is no longer needed.
-- Attribution audit of the 20 core skills done (`docs/attribution-audit.md`): only `excalidraw` carries third-party material and it is credited. The git history still holds removed third-party files and a client pack, so the first public release is made from a clean copy.
+- Attribution audit of the 20 core skills done: only `excalidraw` carries third-party material and it is credited. The first public release starts from a clean copy without the earlier git history.
 
 ## kit-v0.2.0 - 2026-11-13
 
